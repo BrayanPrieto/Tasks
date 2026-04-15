@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-color-1: rgba(243, 244, 246, 0.8);
+    --bg-color-2: rgba(224, 231, 255, 0.8);
+    --bg-base: #f8fafc;
+    --text-main: #1e293b;
+    --glass-bg: rgba(255, 255, 255, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.7);
+  }
+
+  :root.dark {
+    --bg-color-1: rgba(76, 29, 149, 0.2);
+    --bg-color-2: rgba(14, 165, 233, 0.2);
+    --bg-base: #0B0F19;
+    --text-main: #f8fafc;
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+  }
+
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-main);
+  }
+}
+
+@layer utilities {
+  .app-bg {
+    background: radial-gradient(circle at 15% 50%, var(--bg-color-1), transparent 50%),
+                radial-gradient(circle at 85% 30%, var(--bg-color-2), transparent 50%),
+                var(--bg-base);
+  }
+
+  .glass-panel {
+    background-color: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    border-radius: 1rem;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 150, 150, 0.5);
+}
