@@ -18,6 +18,10 @@ function startPythonAPI() {
     cwd: path.join(__dirname, '..')
   });
 
+  pythonProcess.on('error', (err) => {
+    console.error(`Failed to start python process: ${err.message}. Ensure python is installed and in your PATH.`);
+  });
+
   pythonProcess.stdout.on('data', (data) => {
     console.log(`Python: ${data}`);
   });

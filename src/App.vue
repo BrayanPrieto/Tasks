@@ -14,7 +14,7 @@
           <h1 class="text-3xl font-black tracking-tighter text-blue-600 dark:text-blue-400">Tasks</h1>
         </div>
         <button 
-          @click="isSidebarOpen = !isSidebarOpen"
+          @click="toggleSidebar"
           class="p-2 rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 transition-colors mx-auto shrink-0 text-gray-500 dark:text-gray-300 focus:outline-none"
           :title="isSidebarOpen ? 'Collapse Sidebar' : 'Expand Sidebar'"
         >
@@ -115,7 +115,12 @@ import TaskDashboard from './components/TaskDashboard.vue'
 import TaskModal from './components/TaskModal.vue'
 
 const currentTab = ref('kanban')
-const isSidebarOpen = ref(true)
+const isSidebarOpen = ref(false) // Default to closed
+
+const toggleSidebar = () => {
+  isSidebarOpen.value = !isSidebarOpen.value
+  localStorage.setItem('isSidebarOpen', isSidebarOpen.value)
+}
 
 const navItems = [
   { id: 'kanban', label: 'Kanban Board', icon: '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>' },
@@ -131,7 +136,7 @@ const table = ref(null)
 const dashboard = ref(null)
 const taskModal = ref(null)
 
-const isDark = ref(true)
+const isDark = ref(false) // Default to light mode
 
 const toggleTheme = () => {
   isDark.value = !isDark.value
@@ -141,20 +146,32 @@ const toggleTheme = () => {
 const updateTheme = () => {
   if (isDark.value) {
     document.documentElement.classList.add('dark')
-    localStorage.theme = 'dark'
+    localStorage.setItem('theme', 'dark')
   } else {
     document.documentElement.classList.remove('dark')
-    localStorage.theme = 'light'
+    localStorage.setItem('theme', 'light')
   }
 }
 
 onMounted(() => {
-  if (localStorage.theme === 'light') {
-    isDark.value = false
-  } else {
+  // Restore theme from settings
+  if (localStorage.getItem('theme') === 'dark') {
     isDark.value = true
+  } else {
+    isDark.value = false
+    // Initialize user settings with default if not present
+    if (!localStorage.getItem('theme')) localStorage.setItem('theme', 'light')
   }
   updateTheme()
+
+  // Restore sidebar from settings
+  const storedSidebar = localStorage.getItem('isSidebarOpen')
+  if (storedSidebar !== null) {
+    isSidebarOpen.value = storedSidebar === 'true'
+  } else {
+    isSidebarOpen.value = false
+    localStorage.setItem('isSidebarOpen', 'false')
+  }
 })
 
 const openModal = (task = null) => {
