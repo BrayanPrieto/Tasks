@@ -1,35 +1,107 @@
-const { app, BrowserWindow, Notification } = require('electron');
+const { app, BrowserWindow, Notification, ipcMain } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const fs = require('fs');
 
 let mainWindow;
-let pythonProcess;
 let reminderInterval;
 
 const isDev = process.env.NODE_ENV === 'development';
 
-// 1. Spawn Python Backend
-function startPythonAPI() {
-  const scriptPath = path.join(__dirname, '../api/main.py');
-  
-  // In production, you might compile python to exe, so check if it exists:
-  // For now, we spawn standard python
-  pythonProcess = spawn('python', ['-m', 'uvicorn', 'api.main:app', '--port', '8000', '--host', '127.0.0.1'], {
-    cwd: path.join(__dirname, '..')
-  });
+// 1. Setup Local JSON Database and Settings
+const dbPath = path.join(app.getPath('userData'), 'database.json');
+const settingsPath = path.join(app.getPath('userData'), 'settings.json');
 
-  pythonProcess.on('error', (err) => {
-    console.error(`Failed to start python process: ${err.message}. Ensure python is installed and in your PATH.`);
-  });
-
-  pythonProcess.stdout.on('data', (data) => {
-    console.log(`Python: ${data}`);
-  });
-
-  pythonProcess.stderr.on('data', (data) => {
-    console.error(`Python Error: ${data}`);
-  });
+function initDB() {
+  if (!fs.existsSync(dbPath)) {
+    fs.writeFileSync(dbPath, JSON.stringify([]), 'utf8');
+  }
+  if (!fs.existsSync(settingsPath)) {
+    fs.writeFileSync(settingsPath, JSON.stringify({
+      categories: ['General', 'Gestión Digital', 'Gestión Recursos', 'Personal']
+    }), 'utf8');
+  }
 }
+
+function getTasks() {
+  try {
+    const data = fs.readFileSync(dbPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+function getSettings() {
+  try {
+    const data = fs.readFileSync(settingsPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return { categories: ['General'] };
+  }
+}
+
+function saveSettings(settings) {
+  fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+}
+
+function saveTasks(tasks) {
+  fs.writeFileSync(dbPath, JSON.stringify(tasks, null, 2), 'utf8');
+}
+
+// IPC Handlers
+ipcMain.handle('get-categories', () => {
+  return getSettings().categories || [];
+});
+
+ipcMain.handle('save-categories', (event, categories) => {
+  const current = getSettings();
+  current.categories = categories;
+  saveSettings(current);
+  return current.categories;
+});
+
+ipcMain.handle('get-tasks', () => {
+  return getTasks();
+});
+
+ipcMain.handle('create-task', (event, taskData) => {
+  const tasks = getTasks();
+  const newTask = {
+    ...taskData,
+    id: Date.now(),
+    created_at: new Date().toISOString()
+  };
+  // Default values if not provided
+  newTask.status = newTask.status || 'todo';
+  newTask.category = newTask.category || 'General';
+  newTask.urgency = newTask.urgency || 'normal';
+
+  tasks.unshift(newTask); // Add to beginning
+  saveTasks(tasks);
+  return newTask;
+});
+
+ipcMain.handle('update-task', (event, id, taskData) => {
+  const tasks = getTasks();
+  const index = tasks.findIndex(t => t.id === id);
+  if (index !== -1) {
+    tasks[index] = { ...tasks[index], ...taskData, id };
+    saveTasks(tasks);
+    return tasks[index];
+  }
+  throw new Error('Task not found');
+});
+
+ipcMain.handle('delete-task', (event, id) => {
+  const tasks = getTasks();
+  const index = tasks.findIndex(t => t.id === id);
+  if (index !== -1) {
+    tasks.splice(index, 1);
+    saveTasks(tasks);
+    return { message: 'Success' };
+  }
+  throw new Error('Task not found');
+});
 
 async function createWindow() {
   mainWindow = new BrowserWindow({
@@ -40,14 +112,15 @@ async function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js') // Added preload bridge
     },
     autoHideMenuBar: true,
-    show: false // Wait until ready-to-show
+    show: false
   });
 
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show()
-  })
+    mainWindow.show();
+  });
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -59,10 +132,8 @@ async function createWindow() {
 }
 
 app.whenReady().then(() => {
-  startPythonAPI();
-  
-  // Wait a split second for python to boot before creating window
-  setTimeout(createWindow, 1500);
+  initDB();
+  createWindow();
 
   app.setLoginItemSettings({
     openAtLogin: true,
@@ -74,23 +145,15 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('will-quit', () => {
-  if (pythonProcess) {
-    pythonProcess.kill();
-  }
-});
-
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// Reminders Checker (Runs every minute calling python backend via HTTP directly in node, or rely on Vue)
+// Reminders Checker (Runs every minute directly in node)
 function setupReminders() {
-  const checkReminders = async () => {
+  const checkReminders = () => {
     try {
-      // In electron 29+ we can fetch
-      const res = await fetch('http://127.0.0.1:8000/tasks');
-      const tasks = await res.json();
+      const tasks = getTasks();
       const now = new Date();
       
       tasks.forEach(task => {
@@ -117,6 +180,5 @@ function setupReminders() {
     }
   };
 
-  // Check every minute
   reminderInterval = setInterval(checkReminders, 60 * 1000);
 }

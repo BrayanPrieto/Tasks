@@ -11,6 +11,7 @@
           <tr class="text-gray-600 dark:text-gray-400 text-sm border-b border-gray-200 dark:border-white/10 bg-white/20 dark:bg-black/20">
             <th class="py-4 px-6 w-1/5 font-semibold">Title</th>
             <th class="py-4 px-6 w-1/4 font-semibold">Description</th>
+            <th class="py-4 px-6 font-semibold">Category</th>
             <th class="py-4 px-6 font-semibold">Urgency</th>
             <th class="py-4 px-6 font-semibold">Status</th>
             <th class="py-4 px-6 font-semibold">Duration</th>
@@ -30,6 +31,11 @@
               <div class="text-[10px] text-gray-500 mt-1">Created: {{ formatDate(task.created_at) }}</div>
             </td>
             <td class="py-4 px-6 text-sm text-gray-600 dark:text-gray-400 truncate max-w-xs">{{ task.description }}</td>
+            <td class="py-4 px-6">
+              <span class="px-2.5 py-1 rounded-md bg-gray-200/50 dark:bg-white/10 text-xs font-semibold text-gray-700 dark:text-gray-300 border border-gray-300/30 dark:border-white/5">
+                {{ task.category || 'General' }}
+              </span>
+            </td>
             <td class="py-4 px-6">
               <span :class="urgencyBadge(task.urgency).bg + ' ' + urgencyBadge(task.urgency).text" class="px-2 py-0.5 rounded border border-gray-300/30 dark:border-white/10 text-[10px] font-bold uppercase tracking-wider">
                 {{ urgencyBadge(task.urgency).label }}
@@ -76,8 +82,7 @@ const confirmDialog = ref(null)
 
 const loadTasks = async () => {
   try {
-    const res = await fetch('http://127.0.0.1:8000/tasks')
-    tasks.value = await res.json()
+    tasks.value = await window.api.getTasks()
   } catch (err) {
     console.error('API not ready', err)
   }
@@ -106,7 +111,7 @@ const confirmDelete = async (task) => {
   const confirmed = await confirmDialog.value.open(`Are you sure you want to delete "${task.title}"?`)
   if (confirmed) {
     try {
-      await fetch(`http://127.0.0.1:8000/tasks/${task.id}`, { method: 'DELETE' })
+      await window.api.deleteTask(task.id)
       loadTasks()
     } catch (e) {
       console.error(e)

@@ -20,7 +20,7 @@
               placeholder="What do you need to do?"
             />
           </div>
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">Status</label>
               <select 
@@ -43,6 +43,16 @@
                 <option value="normal" class="bg-white dark:bg-gray-800 text-gray-800 dark:text-white">Normal</option>
                 <option value="high" class="bg-white dark:bg-gray-800 text-gray-800 dark:text-white">High</option>
                 <option value="critical" class="bg-white dark:bg-gray-800 text-gray-800 dark:text-white">Critical</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">Category</label>
+              <select 
+                v-model="form.category" 
+                class="w-full bg-gray-50 dark:bg-black/30 border border-gray-300 dark:border-white/10 rounded-xl px-4 py-3 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all appearance-none cursor-pointer"
+              >
+                <option v-for="cat in dynamicCategories" :key="cat" :value="cat">{{ cat }}</option>
               </select>
             </div>
           </div>
@@ -120,12 +130,19 @@ const form = ref({
   description: '',
   status: 'todo',
   urgency: 'normal',
+  category: 'General',
   reminder: '',
   estimated_end: '',
   duration_hours: null
 })
 
-const open = (task = null) => {
+const dynamicCategories = ref(['General'])
+
+const open = async (task = null) => {
+  try {
+    dynamicCategories.value = await window.api.getCategories()
+  } catch(e) {}
+  
   if (task) {
     form.value = { ...task }
   } else {
@@ -135,6 +152,7 @@ const open = (task = null) => {
       description: '',
       status: 'todo',
       urgency: 'normal',
+      category: 'General',
       reminder: '',
       estimated_end: '',
       duration_hours: null
@@ -150,20 +168,12 @@ const close = () => {
 const save = async () => {
   try {
     if (form.value.id) {
-      await fetch(`http://127.0.0.1:8000/tasks/${form.value.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form.value)
-      })
+      await window.api.updateTask(form.value.id, JSON.parse(JSON.stringify(form.value)))
     } else {
-      await fetch(`http://127.0.0.1:8000/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form.value)
-      })
+      await window.api.createTask(JSON.parse(JSON.stringify(form.value)))
     }
   } catch (err) {
-    console.error('Failed to save to Python API:', err)
+    console.error('Failed to save task via IPC:', err)
   }
   
   emit('saved')

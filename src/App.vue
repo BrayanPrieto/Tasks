@@ -43,8 +43,20 @@
         </button>
       </nav>
 
-      <!-- Sidebar Footer (Theme) -->
-      <div class="p-4 border-t border-gray-200/50 dark:border-white/5 flex justify-center">
+      <!-- Sidebar Footer (Settings & Theme) -->
+      <div class="p-3 border-t border-gray-200/50 dark:border-white/5 flex flex-col gap-2">
+        <button 
+          @click="openSettings"
+          class="flex items-center gap-3 p-3 w-full rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors justify-center focus:outline-none"
+          title="Settings"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span v-if="isSidebarOpen" class="text-sm font-semibold">Configuración</span>
+        </button>
+        
         <button 
           @click="toggleTheme" 
           class="flex items-center gap-3 p-3 w-full rounded-xl hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors justify-center focus:outline-none"
@@ -102,7 +114,8 @@
       </div>
     </main>
 
-    <!-- Task Modal -->
+    <!-- Modals -->
+    <SettingsModal ref="settingsModal" @saved="refreshComponents" />
     <TaskModal ref="taskModal" @saved="refreshViews" />
   </div>
 </template>
@@ -113,6 +126,7 @@ import KanbanBoard from './components/KanbanBoard.vue'
 import TaskTable from './components/TaskTable.vue'
 import TaskDashboard from './components/TaskDashboard.vue'
 import TaskModal from './components/TaskModal.vue'
+import SettingsModal from './components/SettingsModal.vue'
 
 const currentTab = ref('kanban')
 const isSidebarOpen = ref(false) // Default to closed
@@ -135,6 +149,7 @@ const kanban = ref(null)
 const table = ref(null)
 const dashboard = ref(null)
 const taskModal = ref(null)
+const settingsModal = ref(null)
 
 const isDark = ref(false) // Default to light mode
 
@@ -176,6 +191,15 @@ onMounted(() => {
 
 const openModal = (task = null) => {
   taskModal.value.open(task)
+}
+
+const openSettings = () => {
+  settingsModal.value.open()
+}
+
+const refreshComponents = () => {
+  // Simple force reboot to apply categories everywhere
+  window.location.reload()
 }
 
 const refreshViews = () => {

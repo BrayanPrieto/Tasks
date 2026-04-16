@@ -67,8 +67,7 @@ const stats = ref({ todo: 0, inprogress: 0, done: 0 })
 const loadTasks = async () => {
   chartDataReady.value = false
   try {
-    const res = await fetch('http://127.0.0.1:8000/tasks')
-    const data = await res.json()
+    const data = await window.api.getTasks()
     tasks.value = data
     computeStats(data)
     chartDataReady.value = true

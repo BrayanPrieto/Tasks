@@ -1,5 +1,20 @@
 <template>
-  <div class="flex h-full gap-6 overflow-x-auto pb-4 custom-scrollbar w-full">
+  <div class="flex flex-col h-full w-full">
+    <!-- Toolbar -->
+    <div class="flex justify-end mb-4 shrink-0">
+      <div class="flex items-center gap-3">
+        <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Category Filter:</label>
+        <select 
+          v-model="selectedCategory" 
+          class="bg-white dark:bg-black/30 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-white border focus:outline-none focus:ring-2 focus:ring-blue-500/50 appearance-none cursor-pointer"
+        >
+          <option value="All">All Categories</option>
+          <option v-for="cat in dynamicCategories" :key="cat" :value="cat">{{ cat }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="flex h-full gap-6 overflow-x-auto pb-4 custom-scrollbar w-full">
     <div 
       v-for="column in columns" 
       :key="column.id" 
@@ -35,7 +50,8 @@
                 {{ element.urgency === 'critical' ? '⚡ CRIT' : element.urgency === 'high' ? '🔥 HIGH' : '🧊 LOW' }}
               </span>
             </div>
-            <p v-if="element.description" class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">{{ element.description }}</p>
+            <p v-if="element.description" class="text-xs text-gray-600 dark:text-gray-400 line-clamp-2 mb-2">{{ element.description }}</p>
+            <div class="text-[10px] bg-gray-200/50 dark:bg-white/10 text-gray-600 dark:text-gray-300 border border-gray-300/30 dark:border-white/5 px-2 py-0.5 rounded-md w-max font-semibold mb-2">{{ element.category || 'General' }}</div>
             
             <div class="flex flex-col gap-1 mt-auto pt-3 border-t border-gray-200/80 dark:border-white/5 transition-colors">
               <div v-if="element.duration_hours" class="text-xs text-blue-700 dark:text-blue-300 font-semibold opacity-90">
@@ -67,6 +83,7 @@
     </div>
     
     <ConfirmModal ref="confirmDialog" />
+    </div>
   </div>
 </template>
 
@@ -85,19 +102,19 @@ const columns = [
 ]
 
 const tasks = ref([])
+const selectedCategory = ref('All')
+const dynamicCategories = ref([])
 
 const loadTasks = async () => {
   try {
-    const res = await fetch('http://127.0.0.1:8000/tasks')
-    tasks.value = await res.json()
+    tasks.value = await window.api.getTasks()
   } catch(err) {
-    console.log("Waiting for python api...", err);
-    setTimeout(loadTasks, 1000); // Retry if python is booting
+    console.error("Failed to load tasks from IPC", err)
   }
 }
 
 const tasksByStatus = (status) => {
-  return tasks.value.filter(t => t.status === status)
+  return tasks.value.filter(t => t.status === status && (selectedCategory.value === 'All' || t.category === selectedCategory.value))
 }
 
 const handleChange = async (e, targetStatus) => {
@@ -105,11 +122,7 @@ const handleChange = async (e, targetStatus) => {
     const task = e.added.element
     task.status = targetStatus
     try {
-      await fetch(`http://127.0.0.1:8000/tasks/${task.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(task)
-      })
+      await window.api.updateTask(task.id, JSON.parse(JSON.stringify(task)))
       loadTasks()
     } catch(err) {
       console.error(err)
@@ -121,7 +134,7 @@ const confirmDelete = async (task) => {
   const confirmed = await confirmDialog.value.open(`Are you sure you want to delete "${task.title}"?`)
   if (confirmed) {
     try {
-      await fetch(`http://127.0.0.1:8000/tasks/${task.id}`, { method: 'DELETE' })
+      await window.api.deleteTask(task.id)
       loadTasks()
     } catch (err) {
       console.error(err)
@@ -144,7 +157,10 @@ const urgencyBadge = (urgency) => {
   return map[urgency] || map['low']
 }
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    dynamicCategories.value = await window.api.getCategories()
+  } catch(e) {}
   loadTasks()
 })
 
